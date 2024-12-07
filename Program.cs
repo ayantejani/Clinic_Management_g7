@@ -137,16 +137,101 @@ namespace g7_Clinic_Management
         {
             Console.Write("\nEnter Patient ID to Delete: ");
             string patientId = Console.ReadLine();
+
             if (int.TryParse(patientId, out int id))
             {
-                // Implement logic to delete patient by ID
-                Console.WriteLine("Delete functionality is under construction.");
+                // Display patient details before asking for confirmation
+                string query = $"SELECT * FROM Patient WHERE PatientID = {id}";
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+                    MySqlCommand cmd = new MySqlCommand(query, connection);
+                    MySqlDataReader reader = cmd.ExecuteReader();
+
+                    if (reader.HasRows)
+                    {
+                        reader.Read(); // Read the patient details
+
+                        // Display patient details
+                        string name = reader["Name"].ToString();
+                        string dob = reader["DateOfBirth"].ToString();
+                        string phone = reader["PhoneNumber"].ToString();
+                        string address = reader["Address"].ToString();
+
+                        Console.WriteLine("\nPatient Details:");
+                        Console.WriteLine($"Name: {name}");
+                        Console.WriteLine($"Date of Birth: {dob}");
+                        Console.WriteLine($"Phone: {phone}");
+                        Console.WriteLine($"Address: {address}");
+
+                        // Ask for confirmation to delete
+                        Console.WriteLine("\nAre you sure you want to delete this patient?");
+                        Console.WriteLine("Press 1 for Yes, Press 2 to Go Back");
+
+                        string confirmChoice = Console.ReadLine();
+
+                        if (confirmChoice == "1")
+                        {
+                            // Proceed with the deletion
+                            DeletePatient(id);
+                        }
+                        else if (confirmChoice == "2")
+                        {
+                            // Go back to the Patient Menu
+                            PatientMenu();
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid choice. Returning to Patient menu.");
+                            PatientMenu();
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Patient not found. Returning to Patient menu.");
+                        PatientMenu();
+                    }
+                }
             }
             else
             {
                 Console.WriteLine("Invalid Patient ID. Returning to Patient menu.");
+                PatientMenu();
             }
         }
+
+        static void DeletePatient(int patientId)
+        {
+            try
+            {
+                // Delete the patient from the database
+                string deleteQuery = "DELETE FROM Patient WHERE PatientID = @PatientID";
+
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+                    MySqlCommand cmd = new MySqlCommand(deleteQuery, connection);
+                    cmd.Parameters.AddWithValue("@PatientID", patientId);
+                    int rowsAffected = cmd.ExecuteNonQuery();
+
+                    if (rowsAffected > 0)
+                    {
+                        Console.WriteLine("\nPatient deleted successfully.");
+                        // Call DisplayChanges to show the change in the terminal
+                        Program.DisplayChanges("Patient deleted", $"Patient ID: {patientId}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Error: Unable to delete patient.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+        }
+
 
         // View Doctor menu (only View option enabled)
         static void DoctorMenu()
