@@ -693,128 +693,66 @@ namespace g7_Clinic_Management
         // Delete Doctor Menu
         static void DeleteDoctorMenu()
         {
-            Console.Write("\nEnter Doctor ID to Delete: ");
-            string doctorIdInput = Console.ReadLine();
+            Console.Write("\nEnter Doctor Name to Search: ");
+            string doctorName = Console.ReadLine();
 
-            if (int.TryParse(doctorIdInput, out int doctorId))
-            {
-                // Display doctor details before deletion
-                string query = $"SELECT * FROM Doctor WHERE DoctorID = {doctorId}";
-                using (MySqlConnection connection = new MySqlConnection(connectionString))
-                {
-                    connection.Open();
-                    MySqlCommand cmd = new MySqlCommand(query, connection);
-                    MySqlDataReader reader = cmd.ExecuteReader();
+            string fetchDoctorsQuery = "SELECT DoctorID, Name, Specialty, PhoneNumber FROM Doctor WHERE Name LIKE @Name";
 
-                    if (reader.HasRows)
-                    {
-                        reader.Read(); // Read the doctor details
-
-                        // Display doctor details
-                        string name = reader["Name"].ToString();
-                        string specialty = reader["Specialty"].ToString();
-                        string phone = reader["PhoneNumber"].ToString();
-
-                        Console.WriteLine("\nDoctor Details:");
-                        Console.WriteLine($"Name: {name}");
-                        Console.WriteLine($"Specialty: {specialty}");
-                        Console.WriteLine($"Phone: {phone}");
-
-                        // Ask for confirmation to delete
-                        Console.WriteLine("\nAre you sure you want to delete this doctor?");
-                        Console.WriteLine("Press 1 for Yes, Press 2 to Go Back");
-
-                        string confirmChoice = Console.ReadLine();
-
-                        if (confirmChoice == "1")
-                        {
-                            DeleteDoctor(doctorId);  // Proceed with the deletion
-                        }
-                        else if (confirmChoice == "2")
-                        {
-                            Console.WriteLine("Doctor deletion cancelled. Returning to Doctor menu.");
-                            Console.ReadKey();
-                            DoctorMenu();  // Go back to the Doctor Menu
-                        }
-                        else
-                        {
-                            Console.WriteLine("Invalid choice. Returning to Doctor menu.");
-                            Console.ReadKey();
-                            DoctorMenu();  // Go back to the Doctor Menu
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Doctor not found. Returning to Doctor menu.");
-                        Console.ReadKey();
-                        DoctorMenu();  // Go back to the Doctor Menu
-                    }
-                }
-            }
-            else
-            {
-                Console.WriteLine("Invalid Doctor ID. Returning to Doctor menu.");
-                Console.ReadKey();
-                DoctorMenu();  // Return to Doctor menu if invalid input
-            }
-        }
-
-        // Delete Doctors
-        static void DeleteDoctor(int doctorId)
-        {
             try
             {
                 using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     connection.Open();
 
-                    // Step 1: Delete related records from `prescription`
-                    string deletePrescriptionsQuery = @"
-                DELETE p
-                FROM Prescription p
-                INNER JOIN Appointment a ON p.AppointmentID = a.AppointmentID
-                WHERE a.DoctorID = @DoctorID";
-                    using (MySqlCommand prescriptionCmd = new MySqlCommand(deletePrescriptionsQuery, connection))
+                    // Fetch doctors matching the name
+                    using (MySqlCommand cmd = new MySqlCommand(fetchDoctorsQuery, connection))
                     {
-                        prescriptionCmd.Parameters.AddWithValue("@DoctorID", doctorId);
-                        prescriptionCmd.ExecuteNonQuery();
-                    }
-
-                    // Step 2: Delete related records from `billing_details`
-                    string deleteBillingQuery = @"
-                DELETE b
-                FROM Billing_Details b
-                INNER JOIN Appointment a ON b.AppointmentID = a.AppointmentID
-                WHERE a.DoctorID = @DoctorID";
-                    using (MySqlCommand billingCmd = new MySqlCommand(deleteBillingQuery, connection))
-                    {
-                        billingCmd.Parameters.AddWithValue("@DoctorID", doctorId);
-                        billingCmd.ExecuteNonQuery();
-                    }
-
-                    // Step 3: Delete related records from `appointment`
-                    string deleteAppointmentsQuery = "DELETE FROM Appointment WHERE DoctorID = @DoctorID";
-                    using (MySqlCommand appointmentCmd = new MySqlCommand(deleteAppointmentsQuery, connection))
-                    {
-                        appointmentCmd.Parameters.AddWithValue("@DoctorID", doctorId);
-                        appointmentCmd.ExecuteNonQuery();
-                    }
-
-                    // Step 4: Delete the doctor record
-                    string deleteDoctorQuery = "DELETE FROM Doctor WHERE DoctorID = @DoctorID";
-                    using (MySqlCommand doctorCmd = new MySqlCommand(deleteDoctorQuery, connection))
-                    {
-                        doctorCmd.Parameters.AddWithValue("@DoctorID", doctorId);
-                        int rowsAffected = doctorCmd.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
+                        cmd.Parameters.AddWithValue("@Name", "%" + doctorName + "%");
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
                         {
-                            Console.WriteLine("\nDoctor and all related appointments, billing details, and prescriptions have been deleted successfully.");
+                            Console.WriteLine("\n--- Matching Doctors ---");
+                            if (reader.HasRows)
+                            {
+                                while (reader.Read())
+                                {
+                                    Console.WriteLine($"Doctor ID: {reader["DoctorID"]}, Name: {reader["Name"]}, Specialty: {reader["Specialty"]}, Phone: {reader["PhoneNumber"]}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("No doctors found with the given name.");
+                                Console.WriteLine("\nPress any key to return to Doctor Menu.");
+                                Console.ReadKey();
+                                DoctorMenu();
+                                return;
+                            }
+                        }
+                    }
+
+                    // Ask for Doctor ID to delete
+                    Console.Write("\nEnter Doctor ID to Delete: ");
+                    if (int.TryParse(Console.ReadLine(), out int doctorId))
+                    {
+                        // Display doctor details with associated records
+                        DisplayDoctorDetails(doctorId);
+
+                        // Confirm deletion
+                        Console.WriteLine("\nDo you want to delete this doctor? (Y/N): ");
+                        string confirmation = Console.ReadLine();
+                        if (confirmation?.ToUpper() == "Y")
+                        {
+                            // Delete related records and doctor
+                            DeleteDoctorAndRecords(doctorId, connection);
+                            Console.WriteLine("\nDoctor and all associated records deleted successfully.");
                         }
                         else
                         {
-                            Console.WriteLine("\nError: Unable to delete the doctor.");
+                            Console.WriteLine("Deletion cancelled. Returning to Doctor Menu.");
                         }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid Doctor ID. Returning to Doctor Menu.");
                     }
                 }
             }
@@ -823,10 +761,140 @@ namespace g7_Clinic_Management
                 Console.WriteLine("An error occurred: " + ex.Message);
             }
 
-            Console.WriteLine("\nPress any key to return to the Doctor menu.");
+            Console.WriteLine("\nPress any key to return to Doctor Menu.");
             Console.ReadKey();
-            DoctorMenu(); // Return to Doctor menu after deletion
+            DoctorMenu();
         }
+
+        // Display Doctor Details with associated records
+        static void DisplayDoctorDetails(int doctorId)
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Fetch and display doctor details
+                    string doctorQuery = "SELECT * FROM Doctor WHERE DoctorID = @DoctorID";
+                    using (MySqlCommand cmd = new MySqlCommand(doctorQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.HasRows)
+                            {
+                                reader.Read();
+                                Console.WriteLine("\n--- Doctor Details ---");
+                                Console.WriteLine($"Name: {reader["Name"]}, Specialty: {reader["Specialty"]}, Phone: {reader["PhoneNumber"]}");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Doctor not found.");
+                                return;
+                            }
+                        }
+                    }
+
+                    // Display Appointments
+                    string appointmentQuery = "SELECT * FROM Appointment WHERE DoctorID = @DoctorID";
+                    Console.WriteLine("\n--- Appointments ---");
+                    DisplayAssociatedDoctorRecords(connection, appointmentQuery, doctorId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred while fetching doctor details: {ex.Message}");
+            }
+        }
+
+        // Delete Doctor and Associated Records
+        static void DeleteDoctorAndRecords(int doctorId, MySqlConnection connection)
+        {
+            // Queries to delete associated records
+            string deleteBillingQuery = @"
+        DELETE b
+        FROM Billing_Details b
+        INNER JOIN Appointment a ON b.AppointmentID = a.AppointmentID
+        WHERE a.DoctorID = @DoctorID";
+
+            string deletePrescriptionsQuery = @"
+        DELETE p
+        FROM Prescription p
+        INNER JOIN Appointment a ON p.AppointmentID = a.AppointmentID
+        WHERE a.DoctorID = @DoctorID";
+
+            string deleteAppointmentsQuery = "DELETE FROM Appointment WHERE DoctorID = @DoctorID";
+            string deleteDoctorQuery = "DELETE FROM Doctor WHERE DoctorID = @DoctorID";
+
+            try
+            {
+                // Delete billing records
+                ExecuteDeleteDoctorQuery(connection, deleteBillingQuery, doctorId);
+
+                // Delete prescriptions
+                ExecuteDeleteDoctorQuery(connection, deletePrescriptionsQuery, doctorId);
+
+                // Delete appointments
+                ExecuteDeleteDoctorQuery(connection, deleteAppointmentsQuery, doctorId);
+
+                // Delete doctor
+                ExecuteDeleteDoctorQuery(connection, deleteDoctorQuery, doctorId);
+
+                Console.WriteLine("\nDoctor and all associated records deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred while deleting records: {ex.Message}");
+            }
+        }
+
+        // Execute Delete Query
+        static void ExecuteDeleteDoctorQuery(MySqlConnection connection, string query, int doctorId)
+        {
+            using (MySqlCommand cmd = new MySqlCommand(query, connection))
+            {
+                cmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+
+        // Display Associated Records (Appointments)
+        static void DisplayAssociatedDoctorRecords(MySqlConnection connection, string query, int doctorId)
+        {
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                for (int i = 0; i < reader.FieldCount; i++)
+                                {
+                                    Console.Write($"{reader.GetName(i)}: {reader[i]}  ");
+                                }
+                                Console.WriteLine();
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No records found.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred while fetching associated records: {ex.Message}");
+            }
+        }
+
+
 
         // Open Add Doctor Form
         static void OpenAddDoctorForm()
@@ -1230,7 +1298,10 @@ WHERE PatientID = @PatientID;";
         // View Billing Records
         static void ViewBillingRecords()
         {
-            string query = "SELECT * FROM Billing_Details";
+            string query = @"
+        SELECT b.BillingID, b.Amount, b.PaymentStatus, b.PaymentDate, b.ModeOfPayment, a.PatientID, a.DoctorID
+        FROM Billing_Details b
+        LEFT JOIN Appointment a ON b.AppointmentID = a.AppointmentID;";
 
             try
             {
@@ -1245,7 +1316,19 @@ WHERE PatientID = @PatientID;";
                         {
                             while (reader.Read())
                             {
-                                Console.WriteLine($"Billing ID: {reader["BillingID"]}, Amount: {reader["Amount"]}, Status: {reader["PaymentStatus"]}, Date: {Convert.ToDateTime(reader["PaymentDate"]).ToShortDateString()}, Mode: {reader["ModeOfPayment"]}");
+                                int billingId = reader["BillingID"] != DBNull.Value ? Convert.ToInt32(reader["BillingID"]) : 0;
+                                decimal amount = reader["Amount"] != DBNull.Value ? Convert.ToDecimal(reader["Amount"]) : 0;
+                                string paymentStatus = reader["PaymentStatus"] != DBNull.Value ? reader["PaymentStatus"].ToString() : "N/A";
+                                string paymentDate = reader["PaymentDate"] != DBNull.Value
+                                    ? Convert.ToDateTime(reader["PaymentDate"]).ToShortDateString()
+                                    : "N/A";
+                                string modeOfPayment = reader["ModeOfPayment"] != DBNull.Value ? reader["ModeOfPayment"].ToString() : "N/A";
+                                int patientId = reader["PatientID"] != DBNull.Value ? Convert.ToInt32(reader["PatientID"]) : 0;
+                                int doctorId = reader["DoctorID"] != DBNull.Value ? Convert.ToInt32(reader["DoctorID"]) : 0;
+
+                                Console.WriteLine($"Billing ID: {billingId}, Amount: {amount:C}, Status: {paymentStatus}, " +
+                                                  $"Date: {paymentDate}, Mode: {modeOfPayment}, " +
+                                                  $"Patient ID: {patientId}, Doctor ID: {doctorId}");
                             }
                         }
                         else
@@ -1257,7 +1340,7 @@ WHERE PatientID = @PatientID;";
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);
+                Console.WriteLine($"An error occurred: {ex.Message}");
             }
 
             Console.WriteLine("\nPress any key to return to the Billing Menu.");
@@ -1266,7 +1349,8 @@ WHERE PatientID = @PatientID;";
         }
 
 
-        
+
+
 
     }
 }
