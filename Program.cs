@@ -13,6 +13,8 @@ namespace g7_Clinic_Management
         [STAThread]
         static void Main(string[] args)
         {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
             ShowMainMenu();
         }
 
@@ -303,12 +305,16 @@ namespace g7_Clinic_Management
         }
 
 
-        // View Doctor menu (only View option enabled)
+        
+        // Doctor-related menu options
         static void DoctorMenu()
         {
             Console.Clear();
             Console.WriteLine("Doctor Management");
             Console.WriteLine("Press 1 to View Doctors");
+            Console.WriteLine("Press 2 to Add Doctor");
+            Console.WriteLine("Press 3 to Update Doctor");
+            Console.WriteLine("Press 4 to Delete Doctor");
             Console.WriteLine("Press 0 to Return to Main Menu");
 
             string choice = Console.ReadLine();
@@ -318,14 +324,155 @@ namespace g7_Clinic_Management
                 case "1":
                     ViewDoctors();
                     break;
+                case "2":
+                    OpenAddDoctorForm();
+                    break;
+                case "3":
+                    UpdateDoctorMenu();
+                    break;
+                case "4":
+                    DeleteDoctorMenu();
+                    break;
                 case "0":
                     ShowMainMenu();
                     break;
                 default:
                     Console.WriteLine("Invalid choice. Returning to Doctor menu.");
+                    DoctorMenu();
                     break;
             }
         }
+        static void UpdateDoctorMenu()
+        {
+            Console.Write("\nEnter Doctor ID to Update: ");
+            string doctorIdInput = Console.ReadLine();
+
+            if (int.TryParse(doctorIdInput, out int doctorId))
+            {
+                OpenUpdateDoctorForm(doctorId);
+            }
+            else
+            {
+                Console.WriteLine("Invalid Doctor ID. Returning to Doctor menu.");
+                DoctorMenu();
+            }
+        }
+
+        static void OpenUpdateDoctorForm(int doctorId)
+        {
+            UpdateDoctorForm updateForm = new UpdateDoctorForm(doctorId);
+            updateForm.ShowDialog();
+        }
+
+
+        // Delete Doctor Menu
+        static void DeleteDoctorMenu()
+        {
+            Console.Write("\nEnter Doctor ID to Delete: ");
+            string doctorIdInput = Console.ReadLine();
+
+            if (int.TryParse(doctorIdInput, out int doctorId))
+            {
+                // Display doctor details before asking for confirmation
+                string query = $"SELECT * FROM Doctor WHERE DoctorID = {doctorId}";
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+                    MySqlCommand cmd = new MySqlCommand(query, connection);
+                    MySqlDataReader reader = cmd.ExecuteReader();
+
+                    if (reader.HasRows)
+                    {
+                        reader.Read(); // Read the doctor details
+
+                        // Display doctor details
+                        string name = reader["Name"].ToString();
+                        string specialty = reader["Specialty"].ToString();
+                        string phone = reader["PhoneNumber"].ToString();
+
+                        Console.WriteLine("\nDoctor Details:");
+                        Console.WriteLine($"Name: {name}");
+                        Console.WriteLine($"Specialty: {specialty}");
+                        Console.WriteLine($"Phone: {phone}");
+
+                        // Ask for confirmation to delete
+                        Console.WriteLine("\nAre you sure you want to delete this doctor?");
+                        Console.WriteLine("Press 1 for Yes, Press 2 to Go Back");
+
+                        string confirmChoice = Console.ReadLine();
+
+                        if (confirmChoice == "1")
+                        {
+                            // Proceed with the deletion
+                            DeleteDoctor(doctorId);
+                        }
+                        else if (confirmChoice == "2")
+                        {
+                            // Go back to the Doctor Menu
+                            DoctorMenu();
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid choice. Returning to Doctor menu.");
+                            DoctorMenu();
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Doctor not found. Returning to Doctor menu.");
+                        DoctorMenu();
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid Doctor ID. Returning to Doctor menu.");
+                DoctorMenu();
+            }
+        }
+
+        // Delete Doctors
+        static void DeleteDoctor(int doctorId)
+        {
+            try
+            {
+                // Delete the doctor from the database
+                string deleteQuery = "DELETE FROM Doctor WHERE DoctorID = @DoctorID";
+
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+                    MySqlCommand cmd = new MySqlCommand(deleteQuery, connection);
+                    cmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                    int rowsAffected = cmd.ExecuteNonQuery();
+
+                    if (rowsAffected > 0)
+                    {
+                        Console.WriteLine("\nDoctor deleted successfully.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Error: Unable to delete doctor.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Doctor menu.");
+            Console.ReadKey();
+            DoctorMenu();
+        }
+
+        static void OpenAddDoctorForm()
+        {
+            AddDoctorForm addForm = new AddDoctorForm();
+            addForm.ShowDialog();
+        }
+
+
 
         // View Doctors
         static void ViewDoctors()
