@@ -294,13 +294,12 @@ namespace g7_Clinic_Management
             Console.WriteLine("Press 3 to Update Patient");
             Console.WriteLine("Press 4 to Delete Patient");
             Console.WriteLine("Press 0 to Return to Main Menu");
-
             string choice = Console.ReadLine();
 
             switch (choice)
             {
                 case "1":
-                    ViewPatients();  // Call method to view patients
+                    ViewPatients();
                     break;
                 case "2":
                     OpenAddPatientForm();  // Opens Add Patient Form
@@ -316,31 +315,8 @@ namespace g7_Clinic_Management
                     break;
                 default:
                     Console.WriteLine("Invalid choice. Returning to Patient menu.");
-                    Console.ReadKey();
-                    PatientMenu();  // If invalid choice, go back to Patient menu
                     break;
             }
-        }
-
-        // Viewing patients
-        static void ViewPatients()
-        {
-            string query = "SELECT * FROM Patient";  // Fetch all patients
-            ExecuteQuery(query);  // Executes the query and displays the results
-            Console.WriteLine("\nPress any key to return to Patient menu.");
-            Console.ReadKey();
-            PatientMenu();  // Returns to Patient menu after viewing the patients
-        }
-
-        // Open Add Patient Form
-        static void OpenAddPatientForm()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new AddPatientForm());  // Opens the AddPatientForm
-            Console.WriteLine("\nPress any key to return to the Patient menu.");
-            Console.ReadKey();
-            PatientMenu();  // Returns to Patient menu after adding a patient
         }
 
         // Update Patient Menu
@@ -419,14 +395,12 @@ namespace g7_Clinic_Management
                             else
                             {
                                 Console.WriteLine("Patient deletion cancelled. Returning to Patient menu.");
-                                Console.ReadKey();
                                 PatientMenu();  // Go back to Patient menu if cancellation
                             }
                         }
                         else
                         {
                             Console.WriteLine("Patient not found.");
-                            Console.ReadKey();
                             PatientMenu();  // Return to Patient menu if no patient is found
                         }
                     }
@@ -435,7 +409,6 @@ namespace g7_Clinic_Management
             else
             {
                 Console.WriteLine("Invalid Patient ID. Returning to Patient menu.");
-                Console.ReadKey();
                 PatientMenu();  // Return to Patient menu if invalid input
             }
         }
@@ -445,29 +418,47 @@ namespace g7_Clinic_Management
         {
             try
             {
-                // Step 1: Delete related records from the appointments and billing details table
-                string deleteAppointmentsQuery = "DELETE FROM Appointment WHERE PatientID = @PatientID";
-                string deleteBillingQuery = "DELETE FROM Billing_Details WHERE PatientID = @PatientID";
-
                 using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     connection.Open();
 
-                    // Deleting related appointments
-                    using (MySqlCommand cmd = new MySqlCommand(deleteAppointmentsQuery, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@PatientID", patientId);
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    // Deleting related billing details
+                    // Step 1: Delete related billing details
+                    string deleteBillingQuery = @"
+                DELETE FROM Billing_Details 
+                WHERE AppointmentID IN (
+                    SELECT AppointmentID 
+                    FROM Appointment 
+                    WHERE PatientID = @PatientID
+                )";
                     using (MySqlCommand cmd = new MySqlCommand(deleteBillingQuery, connection))
                     {
                         cmd.Parameters.AddWithValue("@PatientID", patientId);
                         cmd.ExecuteNonQuery();
                     }
 
-                    // Step 2: Now delete the patient
+                    // Step 2: Delete related prescriptions
+                    string deletePrescriptionsQuery = @"
+                DELETE FROM Prescription 
+                WHERE AppointmentID IN (
+                    SELECT AppointmentID 
+                    FROM Appointment 
+                    WHERE PatientID = @PatientID
+                )";
+                    using (MySqlCommand cmd = new MySqlCommand(deletePrescriptionsQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@PatientID", patientId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Step 3: Delete related appointments
+                    string deleteAppointmentsQuery = "DELETE FROM Appointment WHERE PatientID = @PatientID";
+                    using (MySqlCommand cmd = new MySqlCommand(deleteAppointmentsQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@PatientID", patientId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Step 4: Delete the patient record
                     string deletePatientQuery = "DELETE FROM Patient WHERE PatientID = @PatientID";
                     using (MySqlCommand cmd = new MySqlCommand(deletePatientQuery, connection))
                     {
@@ -495,8 +486,25 @@ namespace g7_Clinic_Management
             PatientMenu();  // Return to Patient menu after deletion
         }
 
+        // Open Add Patient Form
+        static void OpenAddPatientForm()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new AddPatientForm());  // Opens the AddPatientForm
+        }
 
+        // Viewing patients
+        static void ViewPatients()
+        {
+            string query = "SELECT * FROM Patient";  // Fetch all patients
+            ExecuteQuery(query);  // Executes the query and displays the results
+            Console.WriteLine("\nPress any key to return to Patient menu.");
+            Console.ReadKey();
+            PatientMenu();  // Returns to Patient menu
+        }
 
+        
 
         // Doctor-related menu options
         static void DoctorMenu()
@@ -641,34 +649,68 @@ namespace g7_Clinic_Management
         {
             try
             {
-                // Query to delete doctor
-                string deleteQuery = "DELETE FROM Doctor WHERE DoctorID = @DoctorID";
                 using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     connection.Open();
-                    MySqlCommand cmd = new MySqlCommand(deleteQuery, connection);
-                    cmd.Parameters.AddWithValue("@DoctorID", doctorId);
-                    int rowsAffected = cmd.ExecuteNonQuery();  // Executes the query
 
-                    if (rowsAffected > 0)
+                    // Step 1: Delete related records from `prescription`
+                    string deletePrescriptionsQuery = @"
+                DELETE p
+                FROM Prescription p
+                INNER JOIN Appointment a ON p.AppointmentID = a.AppointmentID
+                WHERE a.DoctorID = @DoctorID";
+                    using (MySqlCommand prescriptionCmd = new MySqlCommand(deletePrescriptionsQuery, connection))
                     {
-                        Console.WriteLine("\nDoctor deleted successfully.");
+                        prescriptionCmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                        prescriptionCmd.ExecuteNonQuery();
                     }
-                    else
+
+                    // Step 2: Delete related records from `billing_details`
+                    string deleteBillingQuery = @"
+                DELETE b
+                FROM Billing_Details b
+                INNER JOIN Appointment a ON b.AppointmentID = a.AppointmentID
+                WHERE a.DoctorID = @DoctorID";
+                    using (MySqlCommand billingCmd = new MySqlCommand(deleteBillingQuery, connection))
                     {
-                        Console.WriteLine("Error: Unable to delete doctor.");
+                        billingCmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                        billingCmd.ExecuteNonQuery();
+                    }
+
+                    // Step 3: Delete related records from `appointment`
+                    string deleteAppointmentsQuery = "DELETE FROM Appointment WHERE DoctorID = @DoctorID";
+                    using (MySqlCommand appointmentCmd = new MySqlCommand(deleteAppointmentsQuery, connection))
+                    {
+                        appointmentCmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                        appointmentCmd.ExecuteNonQuery();
+                    }
+
+                    // Step 4: Delete the doctor record
+                    string deleteDoctorQuery = "DELETE FROM Doctor WHERE DoctorID = @DoctorID";
+                    using (MySqlCommand doctorCmd = new MySqlCommand(deleteDoctorQuery, connection))
+                    {
+                        doctorCmd.Parameters.AddWithValue("@DoctorID", doctorId);
+                        int rowsAffected = doctorCmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("\nDoctor and all related appointments, billing details, and prescriptions have been deleted successfully.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("\nError: Unable to delete the doctor.");
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);  // Error handling
+                Console.WriteLine("An error occurred: " + ex.Message);
             }
 
-            // Prompt to return to Doctor menu after deletion
-            Console.WriteLine("\nPress any key to return to Doctor menu.");
+            Console.WriteLine("\nPress any key to return to the Doctor menu.");
             Console.ReadKey();
-            DoctorMenu();  // Return to Doctor menu after deletion
+            DoctorMenu(); // Return to Doctor menu after deletion
         }
 
         // Open Add Doctor Form
@@ -697,6 +739,8 @@ namespace g7_Clinic_Management
             DoctorMenu();  // Return to Doctor menu after viewing the doctors
         }
 
+
+
         // Execute SQL Query and Display Results
         static void ExecuteQuery(string query)
         {
@@ -723,10 +767,6 @@ namespace g7_Clinic_Management
                 Console.WriteLine($"Error executing query: {ex.Message}");
             }
         }
-
-
-
-
 
         // View Appointment menu 
         static void AppointmentMenu()
@@ -756,7 +796,6 @@ namespace g7_Clinic_Management
                     break;
             }
         }
-
 
         // Open Add Appointment Form
         static void OpenAddAppointmentForm()
@@ -808,8 +847,6 @@ namespace g7_Clinic_Management
             Console.ReadKey();
             AppointmentMenu();
         }
-
-
 
         // Prescription Menu
         static void PrescriptionMenu()

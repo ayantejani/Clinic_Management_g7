@@ -81,10 +81,9 @@ namespace g7_Clinic_Management
                         // Call DisplayChanges to show the changes in terminal
                         Program.DisplayChanges("Patient updated", $"Name: {name}, Date of Birth: {dob.ToShortDateString()}, Phone: {phone}, Address: {address}");
 
-                        // Show confirmation and close the form
-                        Console.WriteLine("\nPatient information updated. Press any key to return to the Main Menu.");
-                        Console.ReadKey();  // Wait for a key press
-                        this.Close();  // Close the form
+                        // Set DialogResult to indicate that the form was closed successfully
+                        this.DialogResult = DialogResult.OK;  // This signals that the form is closing properly
+                        this.Close(); // Close the form
                     }
                 }
             }
@@ -94,10 +93,14 @@ namespace g7_Clinic_Management
             }
         }
 
-
         private void BtnExit_Click(object sender, EventArgs e)
         {
             this.Close(); // Close the form when Exit is clicked
         }
+
+
+
+
+        
     }
 }
