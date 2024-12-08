@@ -28,7 +28,7 @@ namespace group7_Clinic_Management
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
                         MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
-                        System.Data.DataTable patientTable = new System.Data.DataTable();
+                        DataTable patientTable = new DataTable();
                         adapter.Fill(patientTable);
 
                         // Add an empty row for default selection
@@ -50,6 +50,7 @@ namespace group7_Clinic_Management
             }
         }
 
+        // Load Doctor Names
         private void LoadDoctorNames()
         {
             try
@@ -61,7 +62,7 @@ namespace group7_Clinic_Management
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
                         MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
-                        System.Data.DataTable doctorTable = new System.Data.DataTable();
+                        DataTable doctorTable = new DataTable();
                         adapter.Fill(doctorTable);
 
                         // Add an empty row for default selection
@@ -83,19 +84,17 @@ namespace group7_Clinic_Management
             }
         }
 
-
         // Submit Button Click
         private void ButtonSubmit_Click(object sender, EventArgs e)
         {
+            if (comboBoxPatientName.SelectedIndex == 0 || comboBoxDoctorName.SelectedIndex == 0)
+            {
+                MessageBox.Show("Please select a valid patient and doctor.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             try
             {
-                // Validate that a patient and a doctor are selected
-                if (comboBoxPatientName.SelectedValue == null || comboBoxDoctorName.SelectedValue == null)
-                {
-                    MessageBox.Show("Please select both a patient and a doctor.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
                 using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     connection.Open();
@@ -108,11 +107,16 @@ namespace group7_Clinic_Management
                         cmd.Parameters.AddWithValue("@PatientID", comboBoxPatientName.SelectedValue);
                         cmd.Parameters.AddWithValue("@DoctorID", comboBoxDoctorName.SelectedValue);
                         cmd.Parameters.AddWithValue("@AppointmentDate", datePickerAppointmentDate.Value.Date);
-                        cmd.Parameters.AddWithValue("@AppointmentTime", timePickerAppointmentTime.Value.ToString("HH:mm:ss"));
+                        cmd.Parameters.AddWithValue("@AppointmentTime", timePickerAppointmentTime.Value.TimeOfDay);
                         cmd.Parameters.AddWithValue("@Reason", textBoxReason.Text);
 
                         cmd.ExecuteNonQuery();
+
+                        // Display success message
                         MessageBox.Show("Appointment added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Display the newly added appointment details in the console
+                        DisplayAppointmentDetails(connection);
                     }
                 }
 
@@ -122,6 +126,47 @@ namespace group7_Clinic_Management
             {
                 MessageBox.Show($"An error occurred while adding the appointment: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // Display the newly added appointment details in the console
+        private void DisplayAppointmentDetails(MySqlConnection connection)
+        {
+            string fetchQuery = @"
+                SELECT a.AppointmentID, a.AppointmentDate, a.Time, 
+                       p.Name AS PatientName, d.Name AS DoctorName, a.Reason
+                FROM Appointment a
+                INNER JOIN Patient p ON a.PatientID = p.PatientID
+                INNER JOIN Doctor d ON a.DoctorID = d.DoctorID
+                ORDER BY a.AppointmentID DESC
+                LIMIT 1;"; // Fetch the most recent appointment
+
+            try
+            {
+                using (MySqlCommand fetchCmd = new MySqlCommand(fetchQuery, connection))
+                {
+                    using (MySqlDataReader reader = fetchCmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            Console.Clear();
+                            Console.WriteLine("\n--- Appointment Added ---");
+                            Console.WriteLine($"Appointment ID: {reader["AppointmentID"]}");
+                            Console.WriteLine($"Patient Name: {reader["PatientName"]}");
+                            Console.WriteLine($"Doctor Name: {reader["DoctorName"]}");
+                            Console.WriteLine($"Date: {Convert.ToDateTime(reader["AppointmentDate"]).ToShortDateString()}");
+                            Console.WriteLine($"Time: {reader["Time"]}");
+                            Console.WriteLine($"Reason: {reader["Reason"]}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred while fetching the appointment details: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to the menu...");
+            Console.ReadKey();
         }
 
         // Cancel Button Click

@@ -768,6 +768,7 @@ namespace g7_Clinic_Management
             }
         }
 
+
         // Appointment Related Options
         // View Appointment menu 
         static void AppointmentMenu()
@@ -776,6 +777,8 @@ namespace g7_Clinic_Management
             Console.WriteLine("Appointment Management");
             Console.WriteLine("Press 1 to View Appointments");
             Console.WriteLine("Press 2 to Add Appointment");
+            Console.WriteLine("Press 3 to Update Appointment");
+            Console.WriteLine("Press 4 to Delete Appointment");
             Console.WriteLine("Press 0 to Return to Main Menu");
 
             string choice = Console.ReadLine();
@@ -787,6 +790,12 @@ namespace g7_Clinic_Management
                     break;
                 case "2":
                     OpenAddAppointmentForm();
+                    break;
+                case "3":
+                    OpenUpdateAppointmentForm();
+                    break;
+                case "4":
+                    DeleteAppointment();
                     break;
                 case "0":
                     ShowMainMenu();
@@ -811,6 +820,35 @@ namespace g7_Clinic_Management
             catch (Exception ex)
             {
                 Console.WriteLine("An error occurred while opening the form: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Appointment Menu.");
+            Console.ReadKey();
+            AppointmentMenu(); // Return to Appointment Menu
+        }
+
+        // Open Update Appointment Form
+        static void OpenUpdateAppointmentForm()
+        {
+            Console.Write("\nEnter Appointment ID to Update: ");
+            string input = Console.ReadLine();
+
+            if (int.TryParse(input, out int appointmentId))
+            {
+                try
+                {
+                    // Show the UpdateAppointmentForm with the specified Appointment ID
+                    UpdateAppointmentForm updateAppointmentForm = new UpdateAppointmentForm(appointmentId);
+                    updateAppointmentForm.ShowDialog(); // Show the form as a dialog
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("An error occurred while opening the form: " + ex.Message);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid Appointment ID. Returning to Appointment Menu.");
             }
 
             Console.WriteLine("\nPress any key to return to Appointment Menu.");
@@ -860,6 +898,130 @@ INNER JOIN Doctor d ON a.DoctorID = d.DoctorID;";
             Console.ReadKey();
             AppointmentMenu();
         }
+
+        // Delete Appointment
+        static void DeleteAppointment()
+        {
+            Console.Write("Enter the Patient Name to search appointments: ");
+            string patientName = Console.ReadLine();
+
+            // Query to fetch patient details
+            string fetchPatientsQuery = @"
+SELECT PatientID, Name, PhoneNumber, Address 
+FROM Patient 
+WHERE Name LIKE @PatientName;";
+
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Fetch patients matching the name
+                    using (MySqlCommand cmd = new MySqlCommand(fetchPatientsQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@PatientName", "%" + patientName + "%");
+
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            Console.WriteLine("\n--- Matching Patients ---");
+                            if (reader.HasRows)
+                            {
+                                while (reader.Read())
+                                {
+                                    Console.WriteLine($"Patient ID: {reader["PatientID"]}, Name: {reader["Name"]}, Phone: {reader["PhoneNumber"]}, Address: {reader["Address"]}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("No matching patients found.");
+                                Console.WriteLine("\nPress any key to return to Appointment Menu.");
+                                Console.ReadKey();
+                                AppointmentMenu();
+                                return;
+                            }
+                        }
+                    }
+
+                    Console.Write("\nEnter Patient ID to view appointments: ");
+                    string patientIdInput = Console.ReadLine();
+                    if (int.TryParse(patientIdInput, out int patientId))
+                    {
+                        // Query to fetch appointments of the patient
+                        string fetchAppointmentsQuery = @"
+SELECT AppointmentID, AppointmentDate, Time, Reason 
+FROM Appointment 
+WHERE PatientID = @PatientID;";
+
+                        using (MySqlCommand cmd = new MySqlCommand(fetchAppointmentsQuery, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@PatientID", patientId);
+
+                            using (MySqlDataReader reader = cmd.ExecuteReader())
+                            {
+                                Console.WriteLine("\n--- Appointments for Patient ---");
+                                if (reader.HasRows)
+                                {
+                                    while (reader.Read())
+                                    {
+                                        Console.WriteLine($"Appointment ID: {reader["AppointmentID"]}, Date: {Convert.ToDateTime(reader["AppointmentDate"]).ToShortDateString()}, Time: {reader["Time"]}, Reason: {reader["Reason"]}");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("No appointments found for the specified patient.");
+                                    Console.WriteLine("\nPress any key to return to Appointment Menu.");
+                                    Console.ReadKey();
+                                    AppointmentMenu();
+                                    return;
+                                }
+                            }
+                        }
+
+                        Console.Write("\nEnter Appointment ID to delete: ");
+                        string appointmentIdInput = Console.ReadLine();
+                        if (int.TryParse(appointmentIdInput, out int appointmentId))
+                        {
+                            // Delete the appointment
+                            string deleteAppointmentQuery = "DELETE FROM Appointment WHERE AppointmentID = @AppointmentID";
+
+                            using (MySqlCommand cmd = new MySqlCommand(deleteAppointmentQuery, connection))
+                            {
+                                cmd.Parameters.AddWithValue("@AppointmentID", appointmentId);
+
+                                int rowsAffected = cmd.ExecuteNonQuery();
+                                if (rowsAffected > 0)
+                                {
+                                    Console.WriteLine("Appointment deleted successfully.");
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Failed to delete the appointment. Please check the Appointment ID.");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid Appointment ID.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid Patient ID.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Appointment Menu.");
+            Console.ReadKey();
+            AppointmentMenu();
+        }
+
+
 
 
         // Prescription Menu
