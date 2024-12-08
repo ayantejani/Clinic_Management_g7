@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 
@@ -15,6 +16,7 @@ namespace group7_Clinic_Management
             LoadDoctorNames();
         }
 
+        // Load Patient Names
         private void LoadPatientNames()
         {
             try
@@ -25,13 +27,20 @@ namespace group7_Clinic_Management
                     string query = "SELECT PatientID, Name FROM Patient;";
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        using (MySqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                comboBoxPatientName.Items.Add(new ComboBoxItem(reader["Name"].ToString(), reader["PatientID"].ToString()));
-                            }
-                        }
+                        MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
+                        System.Data.DataTable patientTable = new System.Data.DataTable();
+                        adapter.Fill(patientTable);
+
+                        // Add an empty row for default selection
+                        DataRow emptyRow = patientTable.NewRow();
+                        emptyRow["PatientID"] = DBNull.Value; // Set empty ID
+                        emptyRow["Name"] = "-- Select Patient --";
+                        patientTable.Rows.InsertAt(emptyRow, 0);
+
+                        comboBoxPatientName.DataSource = patientTable;
+                        comboBoxPatientName.DisplayMember = "Name";
+                        comboBoxPatientName.ValueMember = "PatientID";
+                        comboBoxPatientName.SelectedIndex = 0; // Set default selection
                     }
                 }
             }
@@ -51,13 +60,20 @@ namespace group7_Clinic_Management
                     string query = "SELECT DoctorID, Name FROM Doctor;";
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        using (MySqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                comboBoxDoctorName.Items.Add(new ComboBoxItem(reader["Name"].ToString(), reader["DoctorID"].ToString()));
-                            }
-                        }
+                        MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
+                        System.Data.DataTable doctorTable = new System.Data.DataTable();
+                        adapter.Fill(doctorTable);
+
+                        // Add an empty row for default selection
+                        DataRow emptyRow = doctorTable.NewRow();
+                        emptyRow["DoctorID"] = DBNull.Value; // Set empty ID
+                        emptyRow["Name"] = "-- Select Doctor --";
+                        doctorTable.Rows.InsertAt(emptyRow, 0);
+
+                        comboBoxDoctorName.DataSource = doctorTable;
+                        comboBoxDoctorName.DisplayMember = "Name";
+                        comboBoxDoctorName.ValueMember = "DoctorID";
+                        comboBoxDoctorName.SelectedIndex = 0; // Set default selection
                     }
                 }
             }
@@ -67,10 +83,19 @@ namespace group7_Clinic_Management
             }
         }
 
+
+        // Submit Button Click
         private void ButtonSubmit_Click(object sender, EventArgs e)
         {
             try
             {
+                // Validate that a patient and a doctor are selected
+                if (comboBoxPatientName.SelectedValue == null || comboBoxDoctorName.SelectedValue == null)
+                {
+                    MessageBox.Show("Please select both a patient and a doctor.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
                 using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     connection.Open();
@@ -83,7 +108,7 @@ namespace group7_Clinic_Management
                         cmd.Parameters.AddWithValue("@PatientID", comboBoxPatientName.SelectedValue);
                         cmd.Parameters.AddWithValue("@DoctorID", comboBoxDoctorName.SelectedValue);
                         cmd.Parameters.AddWithValue("@AppointmentDate", datePickerAppointmentDate.Value.Date);
-                        cmd.Parameters.AddWithValue("@AppointmentTime", timePickerAppointmentTime.Value.TimeOfDay);
+                        cmd.Parameters.AddWithValue("@AppointmentTime", timePickerAppointmentTime.Value.ToString("HH:mm:ss"));
                         cmd.Parameters.AddWithValue("@Reason", textBoxReason.Text);
 
                         cmd.ExecuteNonQuery();
@@ -92,8 +117,6 @@ namespace group7_Clinic_Management
                 }
 
                 this.Close(); // Close the form after adding the appointment
-                Console.WriteLine("\nPress any key to go to the main menu.");
-                Console.ReadKey(); // Wait for the user to press a key
             }
             catch (Exception ex)
             {
@@ -101,27 +124,10 @@ namespace group7_Clinic_Management
             }
         }
 
-
+        // Cancel Button Click
         private void ButtonCancel_Click(object sender, EventArgs e)
         {
             this.Close();
-        }
-    }
-
-    public class ComboBoxItem
-    {
-        public string Text { get; set; }
-        public string Value { get; set; }
-
-        public ComboBoxItem(string text, string value)
-        {
-            Text = text;
-            Value = value;
-        }
-
-        public override string ToString()
-        {
-            return Text;
         }
     }
 }

@@ -768,6 +768,7 @@ namespace g7_Clinic_Management
             }
         }
 
+        // Appointment Related Options
         // View Appointment menu 
         static void AppointmentMenu()
         {
@@ -792,6 +793,7 @@ namespace g7_Clinic_Management
                     break;
                 default:
                     Console.WriteLine("Invalid choice. Returning to Appointment menu.");
+                    Console.ReadKey();
                     AppointmentMenu();
                     break;
             }
@@ -800,20 +802,31 @@ namespace g7_Clinic_Management
         // Open Add Appointment Form
         static void OpenAddAppointmentForm()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new AddAppointmentForm());
+            try
+            {
+                // Simply show the AddAppointmentForm without reinitializing Application settings
+                AddAppointmentForm addAppointmentForm = new AddAppointmentForm();
+                addAppointmentForm.ShowDialog(); // Show the form as a dialog
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred while opening the form: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Appointment Menu.");
+            Console.ReadKey();
+            AppointmentMenu(); // Return to Appointment Menu
         }
 
         // View Appointments
         static void ViewAppointments()
         {
             string query = @"
-        SELECT a.AppointmentID, a.AppointmentDate, a.Time, 
-               p.Name AS PatientName, d.Name AS DoctorName, a.Reason
-        FROM Appointment a
-        INNER JOIN Patient p ON a.PatientID = p.PatientID
-        INNER JOIN Doctor d ON a.DoctorID = d.DoctorID;";
+SELECT a.AppointmentID, a.AppointmentDate, a.Time, 
+       p.Name AS PatientName, d.Name AS DoctorName, a.Reason
+FROM Appointment a
+INNER JOIN Patient p ON a.PatientID = p.PatientID
+INNER JOIN Doctor d ON a.DoctorID = d.DoctorID;";
 
             try
             {
@@ -847,6 +860,7 @@ namespace g7_Clinic_Management
             Console.ReadKey();
             AppointmentMenu();
         }
+
 
         // Prescription Menu
         static void PrescriptionMenu()
