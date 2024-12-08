@@ -41,13 +41,15 @@ namespace g7_Clinic_Management
                         cmd.Parameters.AddWithValue("@Address", address);
 
                         cmd.ExecuteNonQuery();
-                        MessageBox.Show("Your changes have been saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Display confirmation message
+                        MessageBox.Show("Patient added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                         // Call DisplayChanges to show the changes in terminal
                         Program.DisplayChanges("Patient added", $"Name: {name}, Date of Birth: {dob.ToShortDateString()}, Phone: {phone}, Address: {address}");
 
-                        // Close the form
-                        this.Close();
+                        // Ask the user to press any key before closing the form (optional)
+                        this.Close();  // Close the form
                     }
                 }
             }

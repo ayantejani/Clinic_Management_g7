@@ -6,7 +6,7 @@ namespace group7_Clinic_Management
 {
     public partial class AddAppointmentForm : Form
     {
-        private string connectionString = "Server=localhost;Database=clinicdb;User ID=root;Password=admin;";
+        private string connectionString = "Server=localhost;Database=ClinicDB;User ID=root;Password=admin;";
 
         public AddAppointmentForm()
         {
@@ -15,7 +15,6 @@ namespace group7_Clinic_Management
             LoadDoctorNames();
         }
 
-        // Load patient names into the comboBoxPatientName dropdown
         private void LoadPatientNames()
         {
             try
@@ -25,12 +24,13 @@ namespace group7_Clinic_Management
                     connection.Open();
                     string query = "SELECT PatientID, Name FROM Patient;";
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
-                    using (MySqlDataReader reader = cmd.ExecuteReader())
                     {
-                        while (reader.Read())
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
                         {
-                            string displayText = $"{reader["Name"]} (ID: {reader["PatientID"]})";
-                            comboBoxPatientName.Items.Add(new ComboBoxItem(displayText, reader["PatientID"].ToString()));
+                            while (reader.Read())
+                            {
+                                comboBoxPatientName.Items.Add(new ComboBoxItem(reader["Name"].ToString(), reader["PatientID"].ToString()));
+                            }
                         }
                     }
                 }
@@ -41,7 +41,6 @@ namespace group7_Clinic_Management
             }
         }
 
-        // Load doctor names into the comboBoxDoctorName dropdown
         private void LoadDoctorNames()
         {
             try
@@ -51,12 +50,13 @@ namespace group7_Clinic_Management
                     connection.Open();
                     string query = "SELECT DoctorID, Name FROM Doctor;";
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
-                    using (MySqlDataReader reader = cmd.ExecuteReader())
                     {
-                        while (reader.Read())
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
                         {
-                            string displayText = $"{reader["Name"]} (ID: {reader["DoctorID"]})";
-                            comboBoxDoctorName.Items.Add(new ComboBoxItem(displayText, reader["DoctorID"].ToString()));
+                            while (reader.Read())
+                            {
+                                comboBoxDoctorName.Items.Add(new ComboBoxItem(reader["Name"].ToString(), reader["DoctorID"].ToString()));
+                            }
                         }
                     }
                 }
@@ -67,48 +67,47 @@ namespace group7_Clinic_Management
             }
         }
 
-        // Event handler for the Submit button
-        private void btnSubmit_Click(object sender, EventArgs e)
+        private void ButtonSubmit_Click(object sender, EventArgs e)
         {
             try
             {
-                if (comboBoxPatientName.SelectedItem == null || comboBoxDoctorName.SelectedItem == null ||
-                    string.IsNullOrWhiteSpace(textBoxReason.Text))
-                {
-                    MessageBox.Show("All fields are required.");
-                    return;
-                }
-
-                var selectedPatient = (ComboBoxItem)comboBoxPatientName.SelectedItem;
-                var selectedDoctor = (ComboBoxItem)comboBoxDoctorName.SelectedItem;
-
                 using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = "INSERT INTO Appointment (AppointmentDate, Time, PatientID, DoctorID, Reason) " +
-                                   "VALUES (@Date, @Time, @PatientID, @DoctorID, @Reason);";
+
+                    string query = "INSERT INTO Appointment (PatientID, DoctorID, AppointmentDate, Time, Reason) " +
+                                   "VALUES (@PatientID, @DoctorID, @AppointmentDate, @AppointmentTime, @Reason)";
+
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@Date", datePickerAppointmentDate.Value.Date);
-                        cmd.Parameters.AddWithValue("@Time", timePickerAppointmentTime.Value.TimeOfDay);
-                        cmd.Parameters.AddWithValue("@PatientID", selectedPatient.Value);
-                        cmd.Parameters.AddWithValue("@DoctorID", selectedDoctor.Value);
+                        cmd.Parameters.AddWithValue("@PatientID", comboBoxPatientName.SelectedValue);
+                        cmd.Parameters.AddWithValue("@DoctorID", comboBoxDoctorName.SelectedValue);
+                        cmd.Parameters.AddWithValue("@AppointmentDate", datePickerAppointmentDate.Value.Date);
+                        cmd.Parameters.AddWithValue("@AppointmentTime", timePickerAppointmentTime.Value.TimeOfDay);
                         cmd.Parameters.AddWithValue("@Reason", textBoxReason.Text);
 
                         cmd.ExecuteNonQuery();
-                        MessageBox.Show("Appointment added successfully!");
-                        this.Close();
+                        MessageBox.Show("Appointment added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
+
+                this.Close(); // Close the form after adding the appointment
+                Console.WriteLine("\nPress any key to go to the main menu.");
+                Console.ReadKey(); // Wait for the user to press a key
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while adding the appointment: " + ex.Message);
+                MessageBox.Show($"An error occurred while adding the appointment: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+
+        private void ButtonCancel_Click(object sender, EventArgs e)
+        {
+            this.Close();
         }
     }
 
-    // Helper class to store both display text and value in a ComboBox
     public class ComboBoxItem
     {
         public string Text { get; set; }

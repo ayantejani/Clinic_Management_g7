@@ -42,6 +42,7 @@ namespace g7_Clinic_Management
             {
                 MessageBox.Show("An error occurred: " + ex.Message);
             }
+           
         }
 
         private void btnCancel_Click(object sender, EventArgs e)
