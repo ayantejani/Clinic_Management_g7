@@ -165,8 +165,7 @@ namespace group7_Clinic_Management
                 Console.WriteLine("An error occurred while fetching the appointment details: " + ex.Message);
             }
 
-            Console.WriteLine("\nPress any key to return to the menu...");
-            Console.ReadKey();
+            
         }
 
         // Cancel Button Click

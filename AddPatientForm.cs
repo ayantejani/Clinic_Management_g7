@@ -45,13 +45,12 @@ namespace g7_Clinic_Management
                         // Display confirmation message
                         MessageBox.Show("Patient added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                        // Call DisplayChanges to show the changes in terminal
-                        Program.DisplayChanges("Patient added", $"Name: {name}, Date of Birth: {dob.ToShortDateString()}, Phone: {phone}, Address: {address}");
-
-                        // Ask the user to press any key before closing the form (optional)
-                        this.Close();  // Close the form
+                        // Fetch and display the new patient's details in the console
+                        DisplayNewPatientDetails(connection);
                     }
                 }
+
+                this.Close();  // Close the form
             }
             catch (Exception ex)
             {
@@ -62,6 +61,41 @@ namespace g7_Clinic_Management
         private void BtnExit_Click(object sender, EventArgs e)
         {
             this.Close(); // Close the form when Exit is clicked
+        }
+
+        // Method to fetch and display the new patient's details
+        private void DisplayNewPatientDetails(MySqlConnection connection)
+        {
+            string query = "SELECT * FROM Patient ORDER BY PatientID DESC LIMIT 1"; // Fetch the latest patient
+            try
+            {
+                using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                {
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        Console.WriteLine("\n--- Newly Added Patient Details ---");
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                Console.WriteLine($"Patient ID: {reader["PatientID"]}");
+                                Console.WriteLine($"Name: {reader["Name"]}");
+                                Console.WriteLine($"Date of Birth: {Convert.ToDateTime(reader["DateOfBirth"]).ToShortDateString()}");
+                                Console.WriteLine($"Phone: {reader["PhoneNumber"]}");
+                                Console.WriteLine($"Address: {reader["Address"]}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No patient details found.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred while fetching the patient details: " + ex.Message);
+            }
         }
     }
 }
