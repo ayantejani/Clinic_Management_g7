@@ -2,6 +2,8 @@ using System;
 using System.Data;
 using MySql.Data.MySqlClient;
 using System.Windows.Forms;
+using group7_Clinic_Management;
+
 
 namespace g7_Clinic_Management
 {
@@ -21,18 +23,18 @@ namespace g7_Clinic_Management
         // Main menu with options
         static void ShowMainMenu()
         {
-            while (!exitApplication)
-            {
-                Console.Clear(); // Clear the terminal for the main menu
-                Console.WriteLine("Welcome to the Clinic Management System\n");
-                Console.WriteLine("Press 1 to Search Patient by Last Name");
-                Console.WriteLine("Press 2 for Patients");
-                Console.WriteLine("Press 3 for Doctors");
-                Console.WriteLine("Press 4 for Appointments");
-                Console.WriteLine("Press 5 for Prescriptions");
-                Console.WriteLine("Press 6 for Billings");
-                Console.WriteLine("Press 0 to Exit");
+            Console.Clear();
+            Console.WriteLine("Welcome to the Clinic Management System\n");
+            Console.WriteLine("Press 1 to Search Patient by Last Name");
+            Console.WriteLine("Press 2 for Patients");
+            Console.WriteLine("Press 3 for Doctors");
+            Console.WriteLine("Press 4 for Appointments");
+            Console.WriteLine("Press 5 for Prescriptions");
+            Console.WriteLine("Press 6 for Billings");
+            Console.WriteLine("Press 0 to Exit");
 
+            while (true)
+            {
                 Console.Write("\nEnter your choice: ");
                 string choice = Console.ReadLine();
 
@@ -57,15 +59,15 @@ namespace g7_Clinic_Management
                         BillingMenu();
                         break;
                     case "0":
-                        exitApplication = true;
                         Console.WriteLine("Exiting the application. Goodbye!");
-                        break;
+                        return;
                     default:
                         Console.WriteLine("Invalid choice. Please try again.");
                         break;
                 }
             }
         }
+
 
 
         // Search for patient by last name
@@ -120,10 +122,6 @@ namespace g7_Clinic_Management
             Console.ReadKey();
             ShowMainMenu();
         }
-
-
-
-
 
         // Function to display patient details along with their appointments, prescriptions, and billing information
         static void DisplayPatientDetails(int patientId)
@@ -253,8 +251,6 @@ namespace g7_Clinic_Management
             }
         }
 
-
-
         // Patient-related menu options
         static void PatientMenu()
         {
@@ -303,8 +299,6 @@ namespace g7_Clinic_Management
             Console.ReadKey(); // Wait for any key press
             ShowMainMenu(); // Redirect to Main Menu
         }
-
-
         
         // Doctor-related menu options
         static void DoctorMenu()
@@ -472,8 +466,6 @@ namespace g7_Clinic_Management
             addForm.ShowDialog();
         }
 
-
-
         // View Doctors
         static void ViewDoctors()
         {
@@ -487,12 +479,13 @@ namespace g7_Clinic_Management
         }
 
 
-        // View Appointment menu (only View option enabled)
+        // View Appointment menu 
         static void AppointmentMenu()
         {
             Console.Clear();
             Console.WriteLine("Appointment Management");
             Console.WriteLine("Press 1 to View Appointments");
+            Console.WriteLine("Press 2 to Add Appointment");
             Console.WriteLine("Press 0 to Return to Main Menu");
 
             string choice = Console.ReadLine();
@@ -502,26 +495,71 @@ namespace g7_Clinic_Management
                 case "1":
                     ViewAppointments();
                     break;
+                case "2":
+                    OpenAddAppointmentForm();
+                    break;
                 case "0":
                     ShowMainMenu();
                     break;
                 default:
                     Console.WriteLine("Invalid choice. Returning to Appointment menu.");
+                    AppointmentMenu();
                     break;
             }
+        }
+
+
+        // Open Add Appointment Form
+        static void OpenAddAppointmentForm()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new AddAppointmentForm());
         }
 
         // View Appointments
         static void ViewAppointments()
         {
-            string query = "SELECT * FROM Appointment";
-            ExecuteQuery(query);
+            string query = @"
+        SELECT a.AppointmentID, a.AppointmentDate, a.Time, 
+               p.Name AS PatientName, d.Name AS DoctorName, a.Reason
+        FROM Appointment a
+        INNER JOIN Patient p ON a.PatientID = p.PatientID
+        INNER JOIN Doctor d ON a.DoctorID = d.DoctorID;";
 
-            // Prompt to return to Main Menu
-            Console.WriteLine("\nPress any key to go to the Main Menu.");
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        Console.WriteLine("\n--- Appointments ---");
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                Console.WriteLine($"Appointment ID: {reader["AppointmentID"]}, Date: {Convert.ToDateTime(reader["AppointmentDate"]).ToShortDateString()}, Time: {reader["Time"]}, Patient: {reader["PatientName"]}, Doctor: {reader["DoctorName"]}, Reason: {reader["Reason"]}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No appointments found.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Appointment Menu.");
             Console.ReadKey();
-            ShowMainMenu();
+            AppointmentMenu();
         }
+
 
 
         // View Prescription menu (only View option enabled)
