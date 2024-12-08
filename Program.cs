@@ -161,21 +161,21 @@ namespace g7_Clinic_Management
                     connection.Open();
 
                     // Fetch and display patient details
-                    string patientQuery = "SELECT * FROM Patient WHERE PatientID = @PatientID;";
-                    using (MySqlCommand patientCmd = new MySqlCommand(patientQuery, connection))
+                    string patientQuery = "SELECT * FROM Patient WHERE PatientID = @PatientID";
+                    using (MySqlCommand cmd = new MySqlCommand(patientQuery, connection))
                     {
-                        patientCmd.Parameters.AddWithValue("@PatientID", patientId);
-                        using (MySqlDataReader reader = patientCmd.ExecuteReader())
+                        cmd.Parameters.AddWithValue("@PatientID", patientId);
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.HasRows)
                             {
                                 reader.Read();
                                 Console.WriteLine("\n--- Patient Details ---");
                                 Console.WriteLine($"Patient ID: {reader["PatientID"]}");
-                                Console.WriteLine($"Name: {DBNullSafe(reader["Name"])}");
-                                Console.WriteLine($"Date of Birth: {DBNullSafe(reader["DateOfBirth"], true)}");
-                                Console.WriteLine($"Phone: {DBNullSafe(reader["PhoneNumber"])}");
-                                Console.WriteLine($"Address: {DBNullSafe(reader["Address"])}");
+                                Console.WriteLine($"Name: {reader["Name"]}");
+                                Console.WriteLine($"Date of Birth: {Convert.ToDateTime(reader["DateOfBirth"]).ToShortDateString()}");
+                                Console.WriteLine($"Phone: {reader["PhoneNumber"]}");
+                                Console.WriteLine($"Address: {reader["Address"]}");
                             }
                             else
                             {
@@ -185,94 +185,46 @@ namespace g7_Clinic_Management
                         }
                     }
 
-                    // Fetch and display appointments
-                    string appointmentQuery = "SELECT * FROM Appointment WHERE PatientID = @PatientID;";
-                    using (MySqlCommand appointmentCmd = new MySqlCommand(appointmentQuery, connection))
-                    {
-                        appointmentCmd.Parameters.AddWithValue("@PatientID", patientId);
-                        using (MySqlDataReader reader = appointmentCmd.ExecuteReader())
-                        {
-                            Console.WriteLine("\n--- Appointments ---");
-                            if (reader.HasRows)
-                            {
-                                while (reader.Read())
-                                {
-                                    Console.WriteLine($"Appointment ID: {DBNullSafe(reader["AppointmentID"])}, Date: {DBNullSafe(reader["AppointmentDate"], true)}, Time: {DBNullSafe(reader["Time"])}, Reason: {DBNullSafe(reader["Reason"])}");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine("No appointments found.");
-                            }
-                        }
-                    }
+                    // Display Appointments
+                    string appointmentQuery = @"
+                SELECT a.AppointmentID, a.AppointmentDate, a.Time, a.Reason, d.Name AS DoctorName
+                FROM Appointment a
+                INNER JOIN Doctor d ON a.DoctorID = d.DoctorID
+                WHERE a.PatientID = @PatientID;";
+                    Console.WriteLine("\n--- Appointments ---");
+                    DisplayAssociatedRecords(connection, appointmentQuery, patientId);
 
-                    // Fetch and display prescriptions
+                    // Display Prescriptions
                     string prescriptionQuery = @"
-            SELECT p.MedicationName, p.Dosage, p.Duration 
-            FROM Prescription p
-            INNER JOIN Appointment a ON p.AppointmentID = a.AppointmentID
-            WHERE a.PatientID = @PatientID;";
-                    using (MySqlCommand prescriptionCmd = new MySqlCommand(prescriptionQuery, connection))
-                    {
-                        prescriptionCmd.Parameters.AddWithValue("@PatientID", patientId);
-                        using (MySqlDataReader reader = prescriptionCmd.ExecuteReader())
-                        {
-                            Console.WriteLine("\n--- Prescriptions ---");
-                            if (reader.HasRows)
-                            {
-                                while (reader.Read())
-                                {
-                                    Console.WriteLine($"Medication: {DBNullSafe(reader["MedicationName"])}, Dosage: {DBNullSafe(reader["Dosage"])}, Duration: {DBNullSafe(reader["Duration"])}");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine("No prescriptions found.");
-                            }
-                        }
-                    }
+                SELECT p.AppointmentID, p.MedicationName, p.Dosage, p.Duration
+                FROM Prescription p
+                WHERE p.AppointmentID IN (
+                    SELECT a.AppointmentID
+                    FROM Appointment a
+                    WHERE a.PatientID = @PatientID
+                );";
+                    Console.WriteLine("\n--- Prescriptions ---");
+                    DisplayAssociatedRecords(connection, prescriptionQuery, patientId);
 
-                    // Fetch and display billing details
+                    // Display Billing Details
                     string billingQuery = @"
-            SELECT b.Amount, b.PaymentStatus, b.PaymentDate, b.ModeOfPayment 
-            FROM Billing_Details b
-            INNER JOIN Appointment a ON b.AppointmentID = a.AppointmentID
-            WHERE a.PatientID = @PatientID;";
-                    using (MySqlCommand billingCmd = new MySqlCommand(billingQuery, connection))
-                    {
-                        billingCmd.Parameters.AddWithValue("@PatientID", patientId);
-                        using (MySqlDataReader reader = billingCmd.ExecuteReader())
-                        {
-                            Console.WriteLine("\n--- Billing Details ---");
-                            if (reader.HasRows)
-                            {
-                                while (reader.Read())
-                                {
-                                    Console.WriteLine($"Amount: {DBNullSafe(reader["Amount"])}, Status: {DBNullSafe(reader["PaymentStatus"])}, Date: {DBNullSafe(reader["PaymentDate"], true)}, Mode: {DBNullSafe(reader["ModeOfPayment"])}");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine("No billing records found.");
-                            }
-                        }
-                    }
+                SELECT b.AppointmentID, b.Amount, b.PaymentStatus, b.PaymentDate, b.ModeOfPayment
+                FROM Billing_Details b
+                WHERE b.AppointmentID IN (
+                    SELECT a.AppointmentID
+                    FROM Appointment a
+                    WHERE a.PatientID = @PatientID
+                );";
+                    Console.WriteLine("\n--- Billing Details ---");
+                    DisplayAssociatedRecords(connection, billingQuery, patientId);
                 }
-
-                // Add the prompt to return to the main menu
-                Console.WriteLine("\nPress any key to return to the Main Menu.");
-                Console.ReadKey();
-                ShowMainMenu();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);
-                Console.WriteLine("\nPress any key to return to the Main Menu.");
-                Console.ReadKey();
-                ShowMainMenu();
+                Console.WriteLine("An error occurred while fetching patient details: " + ex.Message);
             }
         }
+
 
         // Helper method for DBNull handling
         static string DBNullSafe(object value, bool isDate = false)
@@ -953,7 +905,6 @@ namespace g7_Clinic_Management
 
 
         // Appointment Related Options
-        // View Appointment menu 
         static void AppointmentMenu()
         {
             Console.Clear();
@@ -975,7 +926,7 @@ namespace g7_Clinic_Management
                     OpenAddAppointmentForm();
                     break;
                 case "3":
-                    OpenUpdateAppointmentForm();
+                    UpdateAppointment();
                     break;
                 case "4":
                     DeleteAppointment();
@@ -989,54 +940,6 @@ namespace g7_Clinic_Management
                     AppointmentMenu();
                     break;
             }
-        }
-
-        // Open Add Appointment Form
-        static void OpenAddAppointmentForm()
-        {
-            try
-            {
-                // Simply show the AddAppointmentForm without reinitializing Application settings
-                AddAppointmentForm addAppointmentForm = new AddAppointmentForm();
-                addAppointmentForm.ShowDialog(); // Show the form as a dialog
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("An error occurred while opening the form: " + ex.Message);
-            }
-
-            Console.WriteLine("\nPress any key to return to Appointment Menu.");
-            Console.ReadKey();
-            AppointmentMenu(); // Return to Appointment Menu
-        }
-
-        // Open Update Appointment Form
-        static void OpenUpdateAppointmentForm()
-        {
-            Console.Write("\nEnter Appointment ID to Update: ");
-            string input = Console.ReadLine();
-
-            if (int.TryParse(input, out int appointmentId))
-            {
-                try
-                {
-                    // Show the UpdateAppointmentForm with the specified Appointment ID
-                    UpdateAppointmentForm updateAppointmentForm = new UpdateAppointmentForm(appointmentId);
-                    updateAppointmentForm.ShowDialog(); // Show the form as a dialog
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("An error occurred while opening the form: " + ex.Message);
-                }
-            }
-            else
-            {
-                Console.WriteLine("Invalid Appointment ID. Returning to Appointment Menu.");
-            }
-
-            Console.WriteLine("\nPress any key to return to Appointment Menu.");
-            Console.ReadKey();
-            AppointmentMenu(); // Return to Appointment Menu
         }
 
         // View Appointments
@@ -1082,8 +985,28 @@ INNER JOIN Doctor d ON a.DoctorID = d.DoctorID;";
             AppointmentMenu();
         }
 
-        // Delete Appointment
-        static void DeleteAppointment()
+        // Open Add Appointment Form
+        static void OpenAddAppointmentForm()
+        {
+            try
+            {
+                // Simply show the AddAppointmentForm without reinitializing Application settings
+                AddAppointmentForm addAppointmentForm = new AddAppointmentForm();
+                addAppointmentForm.ShowDialog(); // Show the form as a dialog
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred while opening the form: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Appointment Menu.");
+            Console.ReadKey();
+            AppointmentMenu(); // Return to Appointment Menu
+        }
+
+
+        // Update Appointment
+        static void UpdateAppointment()
         {
             Console.Write("Enter the Patient Name to search appointments: ");
             string patientName = Console.ReadLine();
@@ -1127,10 +1050,120 @@ WHERE Name LIKE @PatientName;";
                     }
 
                     Console.Write("\nEnter Patient ID to view appointments: ");
-                    string patientIdInput = Console.ReadLine();
-                    if (int.TryParse(patientIdInput, out int patientId))
+                    if (int.TryParse(Console.ReadLine(), out int patientId))
                     {
-                        // Query to fetch appointments of the patient
+                        string fetchAppointmentsQuery = @"
+SELECT AppointmentID, AppointmentDate, Time, Reason 
+FROM Appointment 
+WHERE PatientID = @PatientID;";
+
+                        using (MySqlCommand cmd = new MySqlCommand(fetchAppointmentsQuery, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@PatientID", patientId);
+
+                            using (MySqlDataReader reader = cmd.ExecuteReader())
+                            {
+                                Console.WriteLine("\n--- Appointments for Patient ---");
+                                if (reader.HasRows)
+                                {
+                                    while (reader.Read())
+                                    {
+                                        Console.WriteLine($"Appointment ID: {reader["AppointmentID"]}, Date: {Convert.ToDateTime(reader["AppointmentDate"]).ToShortDateString()}, Time: {reader["Time"]}, Reason: {reader["Reason"]}");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("No appointments found for the specified patient.");
+                                    Console.WriteLine("\nPress any key to return to Appointment Menu.");
+                                    Console.ReadKey();
+                                    AppointmentMenu();
+                                    return;
+                                }
+                            }
+                        }
+
+                        Console.Write("\nEnter Appointment ID to update: ");
+                        if (int.TryParse(Console.ReadLine(), out int appointmentId))
+                        {
+                            // Open UpdateAppointmentForm
+                            try
+                            {
+                                UpdateAppointmentForm updateAppointmentForm = new UpdateAppointmentForm(appointmentId);
+                                updateAppointmentForm.ShowDialog();
+                                Console.WriteLine("Appointment updated successfully.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine("An error occurred while opening the update form: " + ex.Message);
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid Appointment ID.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid Patient ID.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+
+            Console.WriteLine("\nPress any key to return to Appointment Menu.");
+            Console.ReadKey();
+            AppointmentMenu();
+        }
+
+        // Delete Appointment
+        static void DeleteAppointment()
+        {
+            Console.Write("Enter the Patient Name to search appointments: ");
+            string patientName = Console.ReadLine();
+
+            string fetchPatientsQuery = @"
+SELECT PatientID, Name, PhoneNumber, Address 
+FROM Patient 
+WHERE Name LIKE @PatientName;";
+
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Fetch patients matching the name
+                    using (MySqlCommand cmd = new MySqlCommand(fetchPatientsQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@PatientName", "%" + patientName + "%");
+
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            Console.WriteLine("\n--- Matching Patients ---");
+                            if (reader.HasRows)
+                            {
+                                while (reader.Read())
+                                {
+                                    Console.WriteLine($"Patient ID: {reader["PatientID"]}, Name: {reader["Name"]}, Phone: {reader["PhoneNumber"]}, Address: {reader["Address"]}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("No matching patients found.");
+                                Console.WriteLine("\nPress any key to return to Appointment Menu.");
+                                Console.ReadKey();
+                                AppointmentMenu();
+                                return;
+                            }
+                        }
+                    }
+
+                    Console.Write("\nEnter Patient ID to view appointments: ");
+                    if (int.TryParse(Console.ReadLine(), out int patientId))
+                    {
                         string fetchAppointmentsQuery = @"
 SELECT AppointmentID, AppointmentDate, Time, Reason 
 FROM Appointment 
@@ -1162,10 +1195,8 @@ WHERE PatientID = @PatientID;";
                         }
 
                         Console.Write("\nEnter Appointment ID to delete: ");
-                        string appointmentIdInput = Console.ReadLine();
-                        if (int.TryParse(appointmentIdInput, out int appointmentId))
+                        if (int.TryParse(Console.ReadLine(), out int appointmentId))
                         {
-                            // Delete the appointment
                             string deleteAppointmentQuery = "DELETE FROM Appointment WHERE AppointmentID = @AppointmentID";
 
                             using (MySqlCommand cmd = new MySqlCommand(deleteAppointmentQuery, connection))
@@ -1203,6 +1234,7 @@ WHERE PatientID = @PatientID;";
             Console.ReadKey();
             AppointmentMenu();
         }
+
 
 
 

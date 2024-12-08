@@ -9,6 +9,10 @@ namespace group7_Clinic_Management
         private string connectionString = "Server=localhost;Database=ClinicDB;User ID=root;Password=admin;";
         private int appointmentId;
 
+        // Declare fields to hold the current PatientID and DoctorID
+        private int currentPatientId;
+        private int currentDoctorId;
+
         public UpdateAppointmentForm(int appointmentId)
         {
             InitializeComponent();
@@ -40,8 +44,15 @@ namespace group7_Clinic_Management
                                 datePickerAppointmentDate.Value = Convert.ToDateTime(reader["AppointmentDate"]);
                                 timePickerAppointmentTime.Value = DateTime.Today.Add((TimeSpan)reader["Time"]);
                                 textBoxReason.Text = reader["Reason"].ToString();
-                                comboBoxPatientName.SelectedValue = reader["PatientID"].ToString();
-                                comboBoxDoctorName.SelectedValue = reader["DoctorID"].ToString();
+
+                                // Assign PatientID and DoctorID for comboBox selection
+                                currentPatientId = Convert.ToInt32(reader["PatientID"]);
+                                currentDoctorId = Convert.ToInt32(reader["DoctorID"]);
+                            }
+                            else
+                            {
+                                MessageBox.Show("No appointment found for the given ID.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                this.Close();
                             }
                         }
                     }
@@ -70,12 +81,18 @@ namespace group7_Clinic_Management
                         comboBoxPatientName.DataSource = patientTable;
                         comboBoxPatientName.DisplayMember = "Name";
                         comboBoxPatientName.ValueMember = "PatientID";
+
+                        // Set the selected value to match the currentPatientId
+                        if (patientTable.Rows.Count > 0)
+                        {
+                            comboBoxPatientName.SelectedValue = currentPatientId;
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while loading patient names: " + ex.Message);
+                MessageBox.Show("An error occurred while loading patient names: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -96,12 +113,18 @@ namespace group7_Clinic_Management
                         comboBoxDoctorName.DataSource = doctorTable;
                         comboBoxDoctorName.DisplayMember = "Name";
                         comboBoxDoctorName.ValueMember = "DoctorID";
+
+                        // Set the selected value to match the currentDoctorId
+                        if (doctorTable.Rows.Count > 0)
+                        {
+                            comboBoxDoctorName.SelectedValue = currentDoctorId;
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while loading doctor names: " + ex.Message);
+                MessageBox.Show("An error occurred while loading doctor names: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
