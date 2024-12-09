@@ -254,7 +254,7 @@ namespace g7_Clinic_Management
             return value.ToString();
         }
 
-
+      
 
         // Prescription Menu
         static void PrescriptionMenu()
