@@ -73,13 +73,16 @@ namespace g7_Clinic_Management
                         break;
                     case "0":
                         Console.WriteLine("Exiting the application. Goodbye!");
-                        return;
+                        Console.WriteLine("This Application was created by - \nAyan\nMansi\nAllen\nVamshi\nLasitha");
+                        Environment.Exit(0); // Cleanly exits the application
+                        break;
                     default:
                         Console.WriteLine("Invalid choice. Please try again.");
                         break;
                 }
             }
         }
+
 
         // Search for a patient by last name
         static void SearchPatientByLastName()
@@ -236,7 +239,7 @@ namespace g7_Clinic_Management
             return value.ToString();
         }
 
-      
+
 
         // Prescription Menu
         static void PrescriptionMenu()
