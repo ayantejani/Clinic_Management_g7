@@ -8,6 +8,7 @@ namespace group7_Clinic_Management
     {
         private static string connectionString = "Server=localhost;Database=ClinicDB;User ID=root;Password=admin;";
 
+
         // Patient Related-Menu Options
         public static void PatientMenu()
         {
@@ -322,13 +323,20 @@ namespace group7_Clinic_Management
         // Open Add Patient Form
         static void OpenAddPatientForm()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new AddPatientForm());  // Opens the AddPatientForm
+            // Create an instance of AddPatientForm
+            using (var addPatientForm = new AddPatientForm())
+            {
+                // Show the form as a modal dialog
+                addPatientForm.ShowDialog();
+            }
+
             Console.WriteLine("\nPress any key to return to Patient Menu.");
             Console.ReadKey();
-            PatientMenu(); // Return to Patient Menu
+
+            // Return to the Patient Menu
+            PatientMenu();
         }
+
 
         // Viewing patients
         static void ViewPatients()

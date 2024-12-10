@@ -11,15 +11,26 @@ namespace g7_Clinic_Management
         private static bool exitApplication = false;
         private static string connectionString = "Server=localhost;Database=clinicdb;User ID=root;Password=admin;";
 
-        static void Main(string[] args)
+        static void Main()
         {
-            // Initialize visual styles and text rendering before any window or form is created
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Start the main form or menu, ensuring that no window is created before this point
-            ShowMainMenu();  // Or Application.Run(new MainForm()), depending on your app's flow
+            using (var loginForm = new LoginForm())
+            {
+                if (loginForm.ShowDialog() == DialogResult.OK)
+                {
+                    ShowMainMenu(); // Proceed to the main menu
+                }
+                else
+                {
+                    MessageBox.Show("Application will now exit.", "Login Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Application.Exit(); // Exit if login is canceled
+                }
+            }
         }
+
+
 
         public static void DisplayChanges(string action, string recordDetails)
         {
@@ -32,6 +43,9 @@ namespace g7_Clinic_Management
             Console.ReadKey(); // Wait for the user to press any key
             ShowMainMenu(); // Redirect to the main menu
         }
+
+
+
 
         // Main Menu
         public static void ShowMainMenu()
@@ -153,6 +167,7 @@ namespace g7_Clinic_Management
             Console.ReadKey();
             ShowMainMenu();
         }
+
 
         // Display Patient Details
         static void DisplayPatientDetails(int patientId)

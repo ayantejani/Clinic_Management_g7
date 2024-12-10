@@ -49,33 +49,91 @@ namespace group7_Clinic_Management
         // Update Doctor Menu
         static void UpdateDoctorMenu()
         {
-            Console.Write("\nEnter Doctor ID to Update: ");
-            string doctorIdInput = Console.ReadLine();
+            Console.Write("\nEnter Doctor Name to Search: ");
+            string doctorName = Console.ReadLine();
 
-            if (int.TryParse(doctorIdInput, out int doctorId))
+            string searchQuery = "SELECT DoctorID, Name, Specialty, PhoneNumber FROM Doctor WHERE Name LIKE @Name";
+
+            try
             {
-                OpenUpdateDoctorForm(doctorId);  // Open update form with given doctor ID
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    using (MySqlCommand cmd = new MySqlCommand(searchQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Name", "%" + doctorName + "%");
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.HasRows)
+                            {
+                                Console.WriteLine("\n--- Doctors Matching the Name ---");
+                                while (reader.Read())
+                                {
+                                    Console.WriteLine($"Doctor ID: {reader["DoctorID"]}, Name: {reader["Name"]}, " +
+                                                      $"Specialty: {reader["Specialty"]}, " +
+                                                      $"Phone: {reader["PhoneNumber"]}");
+                                }
+
+                                Console.Write("\nEnter the Doctor ID to Update: ");
+                                string input = Console.ReadLine();
+
+                                if (int.TryParse(input, out int doctorId))
+                                {
+                                    OpenUpdateDoctorForm(doctorId); // Proceed to open the update form
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Invalid Doctor ID. Returning to Doctor Menu.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("No doctors found matching the given name.");
+                            }
+                        }
+                    }
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Console.WriteLine("Invalid Doctor ID. Returning to Doctor menu.");
-                Console.ReadKey();
-                DoctorMenu();  // Return to Doctor menu if invalid input
+                Console.WriteLine("An error occurred: " + ex.Message);
             }
+
+            Console.WriteLine("\nPress any key to return to Doctor Menu.");
+            Console.ReadKey();
+            DoctorMenu(); // Return to Doctor Menu
         }
+
+
 
         // Open Update Doctor Form
         static void OpenUpdateDoctorForm(int doctorId)
         {
-            // Open the update form passing the doctorId to be updated
-            UpdateDoctorForm updateForm = new UpdateDoctorForm(doctorId);
-            updateForm.ShowDialog();  // Show the update form dialog
+            try
+            {
+                // Using statement ensures proper disposal of the form
+                using (var updateForm = new UpdateDoctorForm(doctorId))
+                {
+                    updateForm.ShowDialog();  // Show the update form dialog
+                }
 
-            // After the form closes, prompt to return to Doctor menu
-            Console.WriteLine("\nPress any key to return to Doctor menu.");
-            Console.ReadKey();
-            DoctorMenu();  // Go back to Doctor menu
+                Console.WriteLine("\nDoctor details updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                // Log or handle any exceptions that occur
+                Console.WriteLine($"An error occurred while updating the doctor: {ex.Message}");
+            }
+            finally
+            {
+                // Ensure return to Doctor menu after handling the form
+                Console.WriteLine("\nPress any key to return to the Doctor menu.");
+                Console.ReadKey();
+                DoctorMenu();
+            }
         }
+
 
         // Delete Doctor Menu
         static void DeleteDoctorMenu()
